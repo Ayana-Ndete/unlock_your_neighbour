@@ -112,6 +112,51 @@ button:disabled {
   opacity: 0.55;
 }
 
+.camera-button {
+  display: block;
+  width: 100%;
+  min-height: 3.6rem;
+  margin-top: 2rem;
+  border-radius: 0.85rem;
+  padding: 0.95rem 1rem;
+  color: #fff;
+  background: #b94f23;
+  font-size: 1.13rem;
+  font-weight: 800;
+  text-align: center;
+  cursor: pointer;
+}
+
+.camera-button:hover {
+  background: #963d19;
+}
+
+.camera-button:focus-visible {
+  outline: 3px solid #216e8d;
+  outline-offset: 3px;
+}
+
+.selfie-preview {
+  display: block;
+  width: 100%;
+  max-height: 22rem;
+  margin-top: 1rem;
+  border-radius: 0.85rem;
+  object-fit: cover;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .form-error {
   margin: 0.8rem 0 0;
   color: #a32117;

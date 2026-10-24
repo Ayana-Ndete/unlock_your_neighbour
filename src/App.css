@@ -177,6 +177,29 @@ button:disabled {
   line-height: 1.4;
 }
 
+.winner-list {
+  margin: 1.75rem 0 0;
+  padding: 0;
+  list-style: none;
+  text-align: left;
+}
+
+.winner-list li {
+  margin-top: 0.65rem;
+  border-radius: 0.75rem;
+  padding: 0.8rem 1rem;
+  color: #2b1b13;
+  background: #f7ead9;
+  font-size: 1.1rem;
+  font-weight: 750;
+}
+
+.winner-list span {
+  display: inline-block;
+  min-width: 2.6rem;
+  color: #b34d21;
+}
+
 @media (min-width: 40rem) {
   .app-shell {
     padding-top: 2.5rem;

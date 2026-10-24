@@ -12,6 +12,8 @@ function App() {
   const [game, setGame] = useState(null)
   const [questions, setQuestions] = useState([])
   const [answers, setAnswers] = useState({})
+  const [winners, setWinners] = useState([])
+  const [finishResult, setFinishResult] = useState(null)
   const [questionIndex, setQuestionIndex] = useState(0)
   const [answerText, setAnswerText] = useState('')
   const [error, setError] = useState('')
@@ -21,6 +23,7 @@ function App() {
   const [isCompressing, setIsCompressing] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
   const [isSavingAnswer, setIsSavingAnswer] = useState(false)
+  const [isFinishing, setIsFinishing] = useState(false)
   const hasStarted = useRef(false)
 
   useEffect(() => {
@@ -33,6 +36,26 @@ function App() {
     if (previewUrl) URL.revokeObjectURL(previewUrl)
   }, [previewUrl])
 
+  useEffect(() => {
+    if (!game?.id) return undefined
+
+    const channel = supabase
+      .channel(`game-status-${game.id}`)
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'games', filter: `id=eq.${game.id}` },
+        async (payload) => {
+          if (payload.new.status !== 'ended') return
+          await showGameEnded()
+        },
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [game?.id, player?.id, finishResult?.rank])
+
   async function getDeviceUser() {
     const { data: currentUser, error: currentUserError } = await supabase.auth.getUser()
     if (currentUserError) throw currentUserError
@@ -43,6 +66,34 @@ function App() {
     const { data, error: signInError } = await supabase.auth.signInAnonymously()
     if (signInError) throw signInError
     return data.user
+  }
+
+  async function loadWinners(gameId) {
+    const { data, error: winnersError } = await supabase
+      .from('winners')
+      .select('name, rank')
+      .eq('game_id', gameId)
+      .order('rank')
+    if (winnersError) throw winnersError
+    setWinners(data)
+  }
+
+  async function showGameEnded() {
+    if (!game) return
+
+    try {
+      setGame((currentGame) => currentGame ? { ...currentGame, status: 'ended' } : currentGame)
+      await loadWinners(game.id)
+      if (finishResult?.rank || player?.rank) {
+        setScreen('result')
+      } else {
+        setScreen('challenge-ended')
+      }
+    } catch (winnersError) {
+      setError('The challenge has ended, but we could not load the winners yet. Please refresh.')
+      setScreen('challenge-ended')
+      console.error('Could not load winners:', winnersError)
+    }
   }
 
   async function loadQuestions(gameId, currentPlayer) {
@@ -87,47 +138,63 @@ function App() {
     try {
       setError('')
       await getDeviceUser()
-      const { data: activeGame, error: gameError } = await supabase
-        .from('games')
-        .select('id, status')
-        .eq('status', 'active')
-        .maybeSingle()
-      if (gameError) throw gameError
-      if (!activeGame) {
-        setScreen('unavailable')
-        return
-      }
-
-      setGame(activeGame)
       const savedPlayerId = localStorage.getItem(PLAYER_ID_KEY)
-      let playerQuery = supabase
-        .from('players')
-        .select('id, name, game_id, selfie_url')
-        .eq('game_id', activeGame.id)
-      if (savedPlayerId) playerQuery = playerQuery.eq('id', savedPlayerId)
-
-      let { data: savedPlayer, error: playerError } = await playerQuery.maybeSingle()
-      if (playerError) throw playerError
-
-      // Storage may be cleared while the secure device session remains.
-      if (!savedPlayer && savedPlayerId) {
+      let savedPlayer = null
+      if (savedPlayerId) {
         const response = await supabase
           .from('players')
-          .select('id, name, game_id, selfie_url')
-          .eq('game_id', activeGame.id)
+          .select('id, name, game_id, selfie_url, rank')
+          .eq('id', savedPlayerId)
           .maybeSingle()
+        if (response.error) throw response.error
         savedPlayer = response.data
-        playerError = response.error
       }
 
-      if (playerError) throw playerError
+      let currentGame
       if (savedPlayer) {
+        const { data: savedGame, error: savedGameError } = await supabase
+          .from('games')
+          .select('id, status')
+          .eq('id', savedPlayer.game_id)
+          .single()
+        if (savedGameError) throw savedGameError
+        currentGame = savedGame
         localStorage.setItem(PLAYER_ID_KEY, savedPlayer.id)
         setPlayer(savedPlayer)
-        if (savedPlayer.selfie_url) await loadQuestions(activeGame.id, savedPlayer)
+        setGame(currentGame)
+        if (currentGame.status === 'ended') {
+          await loadWinners(currentGame.id)
+          setScreen(savedPlayer.rank ? 'result' : 'challenge-ended')
+        } else if (savedPlayer.selfie_url) await loadQuestions(currentGame.id, savedPlayer)
         else setScreen('mission')
       } else {
-        setScreen('welcome')
+        const { data: activeGame, error: gameError } = await supabase
+          .from('games')
+          .select('id, status')
+          .eq('status', 'active')
+          .maybeSingle()
+        if (gameError) throw gameError
+        if (!activeGame) {
+          setScreen('unavailable')
+          return
+        }
+        currentGame = activeGame
+        setGame(currentGame)
+        const { data: existingPlayer, error: existingPlayerError } = await supabase
+          .from('players')
+          .select('id, name, game_id, selfie_url, rank')
+          .eq('game_id', currentGame.id)
+          .maybeSingle()
+        if (existingPlayerError) throw existingPlayerError
+
+        if (existingPlayer) {
+          localStorage.setItem(PLAYER_ID_KEY, existingPlayer.id)
+          setPlayer(existingPlayer)
+          if (existingPlayer.selfie_url) await loadQuestions(currentGame.id, existingPlayer)
+          else setScreen('mission')
+        } else {
+          setScreen('welcome')
+        }
       }
     } catch (setupError) {
       setError('We could not connect to the challenge. Please try again or ask an event helper.')
@@ -256,6 +323,39 @@ function App() {
     }
   }
 
+  async function finishChallenge() {
+    if (!player || isFinishing) return
+
+    setIsFinishing(true)
+    setError('')
+    try {
+      const { data, error: finishError } = await supabase
+        .rpc('finish_game', { p_player_id: player.id })
+      if (finishError) throw finishError
+
+      const result = data[0]
+      if (!result) throw new Error('The finish function returned no result.')
+      if (result.outcome === 'ended') {
+        await showGameEnded()
+        return
+      }
+
+      const rankedPlayer = { ...player, rank: result.rank }
+      setPlayer(rankedPlayer)
+      setFinishResult({ rank: result.rank })
+      if (result.game_status === 'ended') {
+        setGame((currentGame) => currentGame ? { ...currentGame, status: 'ended' } : currentGame)
+        await loadWinners(player.game_id)
+      }
+      setScreen('result')
+    } catch (finishError) {
+      setError('We could not finish the challenge. Please check your connection and try again.')
+      console.error('Could not finish game:', finishError)
+    } finally {
+      setIsFinishing(false)
+    }
+  }
+
   const currentQuestion = questions[questionIndex]
 
   return (
@@ -303,7 +403,29 @@ function App() {
       )}
 
       {screen === 'answers-complete' && (
-        <section className="card" aria-labelledby="answers-complete-title"><p className="eyebrow">Answers saved</p><h1 id="answers-complete-title">You’ve answered every question!</h1><p className="intro">Your answers are saved safely. The final finish and winner ranking step comes next.</p></section>
+        <section className="card" aria-labelledby="answers-complete-title">
+          <p className="eyebrow">Answers saved</p><h1 id="answers-complete-title">You’ve answered every question!</h1>
+          <p className="intro">Submit now to see whether you are one of the first three finishers.</p>
+          {error && <p className="form-error" role="alert">{error}</p>}
+          <button type="button" onClick={finishChallenge} disabled={isFinishing}>{isFinishing ? 'Finishing challenge…' : 'Finish challenge'}</button>
+        </section>
+      )}
+
+      {screen === 'result' && (
+        <section className="card" aria-labelledby="result-title">
+          <p className="eyebrow">You finished!</p>
+          <h1 id="result-title">You came {ordinal(player?.rank || finishResult?.rank)}!</h1>
+          <p className="intro">Wonderful work, {player?.name}. You are one of the first three finishers.</p>
+          {game?.status === 'ended' && <WinnerList winners={winners} />}
+        </section>
+      )}
+
+      {screen === 'challenge-ended' && (
+        <section className="card" aria-labelledby="ended-title">
+          <p className="eyebrow">Challenge ended</p><h1 id="ended-title">The three winners have finished.</h1>
+          <p className="intro">Thank you for taking part, {player?.name || 'friend'}!</p>
+          <WinnerList winners={winners} />
+        </section>
       )}
 
       {screen === 'unavailable' && <section className="card" aria-labelledby="unavailable-title"><h1 id="unavailable-title">The challenge is not available</h1><p className="intro">Please ask an event helper for the next challenge.</p></section>}
@@ -313,3 +435,20 @@ function App() {
 }
 
 export default App
+
+function ordinal(rank) {
+  if (rank === 1) return '1st'
+  if (rank === 2) return '2nd'
+  if (rank === 3) return '3rd'
+  return ''
+}
+
+function WinnerList({ winners }) {
+  if (winners.length === 0) return null
+
+  return (
+    <ol className="winner-list" aria-label="Winners">
+      {winners.map((winner) => <li key={winner.rank}><span>{ordinal(winner.rank)}</span> {winner.name}</li>)}
+    </ol>
+  )
+}

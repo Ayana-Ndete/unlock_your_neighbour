@@ -7,7 +7,7 @@ const adminPassword = Deno.env.get('ADMIN_PASSWORD') ?? ''
 const allowedOrigin = Deno.env.get('ADMIN_ALLOWED_ORIGIN') ?? '*'
 
 function response(body: unknown, status = 200, origin = allowedOrigin) {
-  return new Response(JSON.stringify(body), {
+  return new Response(status === 204 ? null : JSON.stringify(body), {
     status,
     headers: {
       'Content-Type': 'application/json',

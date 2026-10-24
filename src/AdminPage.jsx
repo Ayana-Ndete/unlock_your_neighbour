@@ -6,7 +6,12 @@ async function callAdmin(password, action, payload = {}) {
   const { data, error } = await supabase.functions.invoke('admin', {
     body: { password, action, ...payload },
   })
-  if (error) throw new Error('The admin service is unavailable. Please try again.')
+  if (error) {
+    const responseBody = error.context?.json
+      ? await error.context.json().catch(() => null)
+      : null
+    throw new Error(responseBody?.error ?? 'The admin service is unavailable. Please try again.')
+  }
   if (data?.error) throw new Error(data.error)
   return data
 }

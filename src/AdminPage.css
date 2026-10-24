@@ -1,0 +1,119 @@
+.admin-shell {
+  width: min(100%, 56rem);
+  margin: 0 auto;
+  padding: 1.5rem 1rem 3rem;
+}
+
+.admin-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.admin-header h1,
+.admin-card h1,
+.admin-card h2,
+.admin-card h3,
+.admin-card h4 {
+  margin: 0;
+}
+
+.admin-kicker {
+  margin: 0 0 0.25rem;
+  color: #b34d21;
+  font-size: 0.85rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.admin-card {
+  margin-top: 1rem;
+  border-radius: 1rem;
+  padding: 1.25rem;
+  background: #fffdf8;
+  box-shadow: 0 0.5rem 1.5rem rgb(75 44 22 / 10%);
+}
+
+.admin-login {
+  max-width: 30rem;
+  margin: 12vh auto 0;
+}
+
+.admin-card p {
+  line-height: 1.5;
+}
+
+.admin-card button {
+  width: auto;
+  padding-inline: 1.15rem;
+}
+
+.admin-card form {
+  margin-top: 1.5rem;
+}
+
+.admin-note {
+  color: #5e4a3e;
+  font-size: 0.95rem;
+}
+
+.admin-error {
+  margin: 1rem 0;
+  color: #a32117;
+  font-weight: 700;
+}
+
+.secondary-button,
+.text-button,
+.danger-button {
+  margin-right: 0.6rem;
+}
+
+.secondary-button {
+  color: #59351c;
+  background: #f2dfca;
+}
+
+.text-button {
+  min-height: auto !important;
+  margin-top: 0.4rem;
+  padding: 0;
+  color: #9b3a1b;
+  background: transparent;
+  text-decoration: underline;
+}
+
+.danger-button {
+  background: #8f281d;
+}
+
+.question-editor {
+  margin-top: 1.25rem;
+}
+
+.question-editor textarea {
+  width: 100%;
+  min-height: 5rem;
+}
+
+.finisher {
+  margin-top: 1.25rem;
+  border-top: 1px solid #e5d8ca;
+  padding-top: 1.25rem;
+}
+
+.finisher h4 {
+  margin-top: 1rem;
+}
+
+.finisher ul {
+  padding-left: 1.25rem;
+}
+
+.finisher li {
+  margin-top: 0.7rem;
+  line-height: 1.4;
+}

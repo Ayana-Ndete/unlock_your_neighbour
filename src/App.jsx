@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
+import AdminPage from './AdminPage'
 import { compressImage } from './lib/image'
 import { supabase } from './lib/supabase'
 import './App.css'
 
 const PLAYER_ID_KEY = 'unlock-your-neighbour-player-id'
 
-function App() {
+function GameApp() {
   const [screen, setScreen] = useState('loading')
   const [name, setName] = useState('')
   const [player, setPlayer] = useState(null)
@@ -163,8 +164,24 @@ function App() {
         setPlayer(savedPlayer)
         setGame(currentGame)
         if (currentGame.status === 'ended') {
-          await loadWinners(currentGame.id)
-          setScreen(savedPlayer.rank ? 'result' : 'challenge-ended')
+          const { data: nextGame, error: nextGameError } = await supabase
+            .from('games')
+            .select('id, status')
+            .eq('status', 'active')
+            .maybeSingle()
+          if (nextGameError) throw nextGameError
+
+          if (nextGame && nextGame.id !== currentGame.id) {
+            localStorage.removeItem(PLAYER_ID_KEY)
+            setPlayer(null)
+            setGame(nextGame)
+            setWinners([])
+            setFinishResult(null)
+            setScreen('welcome')
+          } else {
+            await loadWinners(currentGame.id)
+            setScreen(savedPlayer.rank ? 'result' : 'challenge-ended')
+          }
         } else if (savedPlayer.selfie_url) await loadQuestions(currentGame.id, savedPlayer)
         else setScreen('mission')
       } else {
@@ -432,6 +449,10 @@ function App() {
       {screen === 'error' && <section className="card" aria-labelledby="error-title"><h1 id="error-title">Something went wrong</h1><p className="intro">{error}</p><button type="button" onClick={initialise}>Try again</button></section>}
     </main>
   )
+}
+
+function App() {
+  return window.location.pathname.replace(/\/$/, '') === '/admin' ? <AdminPage /> : <GameApp />
 }
 
 export default App

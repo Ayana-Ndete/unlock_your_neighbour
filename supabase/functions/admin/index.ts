@@ -12,6 +12,7 @@ function response(body: unknown, status = 200, origin = allowedOrigin) {
     headers: {
       'Content-Type': 'application/json',
       'Access-Control-Allow-Origin': origin,
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
       'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
       'Vary': 'Origin',
     },

@@ -70,6 +70,7 @@ label {
 }
 
 input,
+textarea,
 button {
   box-sizing: border-box;
   width: 100%;
@@ -86,7 +87,19 @@ input {
   font-size: 1.15rem;
 }
 
+textarea {
+  min-height: 9rem;
+  border: 2px solid #cbbcac;
+  padding: 0.8rem 1rem;
+  color: #2b1b13;
+  background: #fff;
+  font-size: 1.15rem;
+  line-height: 1.45;
+  resize: vertical;
+}
+
 input:focus-visible,
+textarea:focus-visible,
 button:focus-visible {
   outline: 3px solid #216e8d;
   outline-offset: 3px;
